@@ -43,7 +43,6 @@ def add_order():
             datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         ])
     return jsonify({"message": "Order added"}), 201
-
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
-    app.run(debug=True, host="0.0.0.0", port=port)
+    app.run(debug=False, host="0.0.0.0", port=port)
