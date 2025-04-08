@@ -1,5 +1,2 @@
 customer_name,dish_name,prep_time,category,priority,order_time
-Alice,Pasta,15,Lunch,2,2025-04-08 10:00:00
-Bob,Burger,10,Dinner,1,2025-04-08 10:02:00
-Charlie,Salad,5,Breakfast,3,2025-04-08 10:05:00
-harini,briyani gandri,25,Dinner,1,2025-04-08 18:18:30
+
