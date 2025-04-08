@@ -1,104 +1,96 @@
 from datetime import datetime, timedelta
-
-# Store scheduled times globally so they don't reset on every call
-scheduled_times = {}
-
-def get_status(start_time_str, end_time_str):
-    now = datetime.now().time()
-    fmt = "%H:%M"
-    start_time = datetime.strptime(start_time_str, fmt).time()
-    end_time = datetime.strptime(end_time_str, fmt).time()
-    if now < start_time:
-        return "Pending"
-    elif start_time <= now < end_time:
-        return "In Progress"
-    else:
-        return "Completed"
+import csv
 
 def read_orders(file_path):
-    import csv
     orders = []
-    with open(file_path, newline='') as csvfile:
-        reader = csv.DictReader(csvfile)
+    with open(file_path, newline="") as f:
+        reader = csv.reader(f)
         for row in reader:
-            row["prep_time"] = int(row["prep_time"])
-            row["priority"] = int(row["priority"])
-            row["order_time"] = datetime.strptime(row["order_time"], "%Y-%m-%d %H:%M:%S")
-            orders.append(row)
+            if len(row) < 6 or row[0] == "customer_name":
+                continue
+            orders.append({
+                "customer_name": row[0],
+                "dish_name": row[1],
+                "prep_time": int(row[2]),
+                "category": row[3],
+                "priority": int(row[4]),
+                "timestamp": datetime.strptime(row[5], "%Y-%m-%d %H:%M:%S")
+            })
     return orders
 
 def schedule_orders(orders, algorithm="Priority", quantum=5):
-    if algorithm == "FCFS":
-        orders.sort(key=lambda x: x["order_time"])
+    scheduled_orders = []
+
+    if algorithm == "Priority":
+        orders.sort(key=lambda x: x["priority"])
+    elif algorithm == "FCFS":
+        orders.sort(key=lambda x: x["timestamp"])
     elif algorithm == "SJF":
         orders.sort(key=lambda x: x["prep_time"])
-    elif algorithm == "Priority":
-        orders.sort(key=lambda x: x["priority"])
     elif algorithm == "Round Robin":
         return round_robin_schedule(orders, quantum)
 
-    scheduled = []
-    current_time = datetime.now()
+    current_time = orders[0]["timestamp"] if orders else datetime.now()
 
-    for idx, order in enumerate(orders):
-        key = f"{order['customer_name']}_{order['dish_name']}_{order['order_time']}"
-        
-        if key not in scheduled_times:
-            start = current_time
-            end = start + timedelta(minutes=order["prep_time"])
-            scheduled_times[key] = {
-                "start_time": start.strftime("%H:%M"),
-                "end_time": end.strftime("%H:%M")
-            }
-            current_time = end  # update for next order
+    for order in orders:
+        start_time = current_time
+        end_time = start_time + timedelta(minutes=order["prep_time"])
 
-        times = scheduled_times[key]
-        status = get_status(times["start_time"], times["end_time"])
+        now = datetime.now()
+        if now >= end_time:
+            status = "Completed"
+        elif start_time <= now < end_time:
+            status = "In Progress"
+        else:
+            status = "Pending"
 
-        scheduled.append({
-            "customer_name": order["customer_name"],
-            "dish_name": order["dish_name"],
-            "prep_time": order["prep_time"],
-            "priority": order["priority"],
-            "category": order["category"],
-            "start_time": times["start_time"],
-            "end_time": times["end_time"],
+        scheduled_orders.append({
+            **order,
+            "start_time": start_time.strftime("%H:%M:%S"),
+            "end_time": end_time.strftime("%H:%M:%S"),
             "status": status
         })
 
-    return scheduled
+        current_time = end_time
 
-def round_robin_schedule(orders, quantum=5):
-    from copy import deepcopy
-    queue = sorted(deepcopy(orders), key=lambda x: x["order_time"])
-    current_time = datetime.now()
-    remaining_time = {i: order["prep_time"] for i, order in enumerate(queue)}
-    scheduled = []
-    index_queue = list(range(len(queue)))
+    return scheduled_orders
 
-    while index_queue:
-        i = index_queue.pop(0)
-        order = queue[i]
-        time_used = min(quantum, remaining_time[i])
-        start = current_time
-        end = start + timedelta(minutes=time_used)
-        current_time = end
+def round_robin_schedule(orders, quantum):
+    orders = sorted(orders, key=lambda x: x["timestamp"])
+    remaining_time = {i: order["prep_time"] for i, order in enumerate(orders)}
+    current_time = orders[0]["timestamp"] if orders else datetime.now()
+    finished = set()
+    schedule = []
+    now = datetime.now()
 
-        status = get_status(start.strftime("%H:%M"), end.strftime("%H:%M"))
+    while len(finished) < len(orders):
+        for i, order in enumerate(orders):
+            if i in finished:
+                continue
 
-        scheduled.append({
-            "customer_name": order["customer_name"],
-            "dish_name": order["dish_name"],
-            "prep_time": time_used,
-            "priority": order["priority"],
-            "category": order["category"],
-            "start_time": start.strftime("%H:%M"),
-            "end_time": end.strftime("%H:%M"),
-            "status": status
-        })
+            time_slice = min(quantum, remaining_time[i])
+            start_time = current_time
+            end_time = start_time + timedelta(minutes=time_slice)
 
-        remaining_time[i] -= time_used
-        if remaining_time[i] > 0:
-            index_queue.append(i)
+            remaining_time[i] -= time_slice
+            if remaining_time[i] <= 0:
+                finished.add(i)
 
-    return scheduled
+            if now >= end_time:
+                status = "Completed"
+            elif start_time <= now < end_time:
+                status = "In Progress"
+            else:
+                status = "Pending"
+
+            schedule.append({
+                **order,
+                "start_time": start_time.strftime("%H:%M:%S"),
+                "end_time": end_time.strftime("%H:%M:%S"),
+                "status": status,
+                "slice": time_slice
+            })
+
+            current_time = end_time
+
+    return schedule
