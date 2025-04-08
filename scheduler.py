@@ -1,5 +1,8 @@
 from datetime import datetime, timedelta
 import csv
+from zoneinfo import ZoneInfo  # For timezone support
+
+IST = ZoneInfo("Asia/Kolkata")  # Indian Standard Time
 
 def read_orders(file_path):
     orders = []
@@ -14,12 +17,12 @@ def read_orders(file_path):
                 "prep_time": int(row[2]),
                 "category": row[3],
                 "priority": int(row[4]),
-                "timestamp": datetime.strptime(row[5], "%Y-%m-%d %H:%M:%S")
+                "timestamp": datetime.strptime(row[5], "%Y-%m-%d %H:%M:%S").replace(tzinfo=IST)
             })
     return orders
 
 def schedule_orders(orders, algorithm="Priority", quantum=5):
-    now = datetime.now()
+    now = datetime.now(IST)
     scheduled_orders = []
 
     if algorithm == "Priority":
@@ -52,10 +55,10 @@ def schedule_orders(orders, algorithm="Priority", quantum=5):
     return scheduled_orders
 
 def round_robin_schedule(orders, quantum):
-    now = datetime.now()
+    now = datetime.now(IST)
     orders = sorted(orders, key=lambda x: x["timestamp"])
     remaining_time = {i: order["prep_time"] for i, order in enumerate(orders)}
-    current_time = orders[0]["timestamp"] if orders else datetime.now()
+    current_time = orders[0]["timestamp"] if orders else now
     finished = set()
     schedule = []
 
