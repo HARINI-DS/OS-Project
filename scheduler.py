@@ -19,6 +19,7 @@ def read_orders(file_path):
     return orders
 
 def schedule_orders(orders, algorithm="Priority", quantum=5):
+    now = datetime.now()
     scheduled_orders = []
 
     if algorithm == "Priority":
@@ -30,19 +31,16 @@ def schedule_orders(orders, algorithm="Priority", quantum=5):
     elif algorithm == "Round Robin":
         return round_robin_schedule(orders, quantum)
 
-    current_time = orders[0]["timestamp"] if orders else datetime.now()
-
     for order in orders:
-        start_time = current_time
+        start_time = order["timestamp"]
         end_time = start_time + timedelta(minutes=order["prep_time"])
 
-        now = datetime.now()
-        if now >= end_time:
-            status = "Completed"
+        if now < start_time:
+            status = "Pending"
         elif start_time <= now < end_time:
             status = "In Progress"
         else:
-            status = "Pending"
+            status = "Completed"
 
         scheduled_orders.append({
             **order,
@@ -51,17 +49,15 @@ def schedule_orders(orders, algorithm="Priority", quantum=5):
             "status": status
         })
 
-        current_time = end_time
-
     return scheduled_orders
 
 def round_robin_schedule(orders, quantum):
+    now = datetime.now()
     orders = sorted(orders, key=lambda x: x["timestamp"])
     remaining_time = {i: order["prep_time"] for i, order in enumerate(orders)}
     current_time = orders[0]["timestamp"] if orders else datetime.now()
     finished = set()
     schedule = []
-    now = datetime.now()
 
     while len(finished) < len(orders):
         for i, order in enumerate(orders):
@@ -76,12 +72,12 @@ def round_robin_schedule(orders, quantum):
             if remaining_time[i] <= 0:
                 finished.add(i)
 
-            if now >= end_time:
-                status = "Completed"
+            if now < start_time:
+                status = "Pending"
             elif start_time <= now < end_time:
                 status = "In Progress"
             else:
-                status = "Pending"
+                status = "Completed"
 
             schedule.append({
                 **order,
