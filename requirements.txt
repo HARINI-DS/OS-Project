@@ -2,3 +2,4 @@ fastapi
 Flask==2.3.2
 Flask-Cors==3.0.10
 gunicorn==21.2.0
+uvicorn
