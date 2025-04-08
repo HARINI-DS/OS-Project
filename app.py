@@ -5,19 +5,21 @@ from datetime import datetime
 import csv
 import os
 
-app = Flask(__name__, static_folder="static")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+app = Flask(__name__, static_folder=BASE_DIR)
 CORS(app)
 
 # File path for the orders CSV
-DATA_PATH = os.path.join(os.path.dirname(__file__), "data.csv")
+DATA_PATH = os.path.join(BASE_DIR, "data.csv")
 
 @app.route("/")
 def serve_index():
-    return send_from_directory("static", "index.html")
+    return send_from_directory(BASE_DIR, "index.html")
 
 @app.route("/<path:path>")
 def serve_static_file(path):
-    return send_from_directory("static", path)
+    return send_from_directory(BASE_DIR, path)
 
 @app.route("/api/orders", methods=["GET"])
 def get_orders():
