@@ -78,14 +78,23 @@
         priority: document.getElementById("priority").value
       };
 
-      await fetch("http://127.0.0.1:5000/api/orders", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify(data)
-      });
+      try {
+        const res = await fetch("http://127.0.0.1:5000/api/orders", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify(data)
+        });
 
-      form.reset();
-      fetchOrders();
+        if (res.ok) {
+          form.reset();
+          fetchOrders();
+        } else {
+          alert("Failed to add order. Please try again.");
+        }
+      } catch (err) {
+        console.error("Error submitting order:", err);
+        alert("Could not connect to the server.");
+      }
     });
 
     algorithmSelect.addEventListener("change", fetchOrders);
@@ -94,65 +103,72 @@
     async function fetchOrders() {
       const algorithm = algorithmSelect.value;
       const quantum = quantumInput.value || 5;
-      const res = await fetch(`http://127.0.0.1:5000/api/orders?algorithm=${algorithm}&quantum=${quantum}`);
-      const data = await res.json();
 
-      const labels = [];
-      const durations = [];
-      const colors = [];
-      const tooltips = [];
+      try {
+        const res = await fetch(`http://127.0.0.1:5000/api/orders?algorithm=${algorithm}&quantum=${quantum}`);
+        const data = await res.json();
 
-      orderList.innerHTML = "";
-      data.orders.forEach((order, i) => {
-        labels.push(`${order.dish_name} (${order.customer_name})`);
-        durations.push(order.prep_time);
-        tooltips.push(`${order.start_time} - ${order.end_time} | Priority ${order.priority}`);
-        const color = order.status === "Completed" ? "seagreen" :
-                      order.status === "In Progress" ? "dodgerblue" : "orange";
-        colors.push(color);
+        const labels = [];
+        const durations = [];
+        const colors = [];
+        const tooltips = [];
 
-        const div = document.createElement("div");
-        div.className = `order ${order.status.replace(" ", "\\ ")}`;
-        div.innerHTML = `
-          <strong>${order.dish_name}</strong> (${order.category})<br>
-          ⏱️ ${order.prep_time} mins | Priority ${order.priority}<br>
-          🕒 ${order.start_time} - ${order.end_time} | <em>${order.status}</em>
-        `;
-        orderList.appendChild(div);
-      });
+        orderList.innerHTML = "";
+        data.orders.forEach((order) => {
+          labels.push(`${order.dish_name} (${order.customer_name})`);
+          durations.push(order.prep_time);
+          tooltips.push(`${order.start_time} - ${order.end_time} | Priority ${order.priority}`);
 
-      if (chart) chart.destroy();
-      chart = new Chart(chartCanvas, {
-        type: "bar",
-        data: {
-          labels,
-          datasets: [{
-            label: "Prep Time",
-            data: durations,
-            backgroundColor: colors
-          }]
-        },
-        options: {
-          indexAxis: "y",
-          plugins: {
-            tooltip: {
-              callbacks: {
-                label: function(ctx) {
-                  return tooltips[ctx.dataIndex];
+          const statusClass = order.status.replace(" ", "\\ ");
+          const color = order.status === "Completed" ? "seagreen" :
+                        order.status === "In Progress" ? "dodgerblue" : "orange";
+          colors.push(color);
+
+          const div = document.createElement("div");
+          div.className = `order ${statusClass}`;
+          div.innerHTML = `
+            <strong>${order.dish_name}</strong> (${order.category})<br>
+            ⏱️ ${order.prep_time} mins | Priority ${order.priority}<br>
+            🕒 ${order.start_time} - ${order.end_time} | <em>${order.status}</em>
+          `;
+          orderList.appendChild(div);
+        });
+
+        if (chart) chart.destroy();
+        chart = new Chart(chartCanvas, {
+          type: "bar",
+          data: {
+            labels,
+            datasets: [{
+              label: "Prep Time",
+              data: durations,
+              backgroundColor: colors
+            }]
+          },
+          options: {
+            indexAxis: "y",
+            plugins: {
+              tooltip: {
+                callbacks: {
+                  label: function(ctx) {
+                    return tooltips[ctx.dataIndex];
+                  }
                 }
+              },
+              title: {
+                display: true,
+                text: `Scheduling Algorithm: ${data.algorithm}`
               }
-            },
-            title: {
-              display: true,
-              text: `Scheduling Algorithm: ${data.algorithm}`
             }
           }
-        }
-      });
+        });
+      } catch (err) {
+        console.error("Error fetching orders:", err);
+      }
     }
 
     fetchOrders();
-    setInterval(fetchOrders, 10000); // auto-refresh every 10 sec
+    setInterval(fetchOrders, 10000); // auto-refresh every 10 seconds
   </script>
 </body>
 </html>
