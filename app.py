@@ -1,37 +1,41 @@
-from flask import Flask, request, jsonify, send_from_directory
-from flask_cors import CORS
+from fastapi import FastAPI, Request
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from scheduler import read_orders, schedule_orders
 from datetime import datetime
 import csv
 import os
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+app = FastAPI()
 
-app = Flask(__name__, static_folder=BASE_DIR)
-CORS(app)
-
-# File path for the orders CSV
+BASE_DIR = os.path.dirname(__file__)
 DATA_PATH = os.path.join(BASE_DIR, "data.csv")
 
-@app.route("/")
-def serve_index():
-    return send_from_directory(BASE_DIR, "index.html")
 
-@app.route("/<path:path>")
-def serve_static_file(path):
-    return send_from_directory(BASE_DIR, path)
+# Serve index.html directly from root
+@app.get("/")
+async def root():
+    return FileResponse(os.path.join(BASE_DIR, "index.html"))
 
-@app.route("/api/orders", methods=["GET"])
-def get_orders():
-    algorithm = request.args.get("algorithm", "Priority")
-    quantum = int(request.args.get("quantum", 5))
+# Serve additional static files (like CSS/JS in same folder)
+@app.get("/{file_name}")
+async def serve_file(file_name: str):
+    file_path = os.path.join(BASE_DIR, file_name)
+    if os.path.exists(file_path):
+        return FileResponse(file_path)
+    return JSONResponse(content={"error": "File not found"}, status_code=404)
+
+# API endpoint to get scheduled orders
+@app.get("/api/orders")
+async def get_orders(algorithm: str = "Priority", quantum: int = 5):
     orders = read_orders(DATA_PATH)
     scheduled = schedule_orders(orders, algorithm, quantum)
-    return jsonify({"algorithm": algorithm, "orders": scheduled})
+    return {"algorithm": algorithm, "orders": scheduled}
 
-@app.route("/api/orders", methods=["POST"])
-def add_order():
-    data = request.json
+# API endpoint to add a new order
+@app.post("/api/orders")
+async def add_order(request: Request):
+    data = await request.json()
     with open(DATA_PATH, "a", newline="") as f:
         writer = csv.writer(f)
         writer.writerow([
@@ -42,7 +46,4 @@ def add_order():
             data["priority"],
             datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         ])
-    return jsonify({"message": "Order added"}), 201
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(debug=False, host="0.0.0.0", port=port)
+    return {"message": "Order added"}
