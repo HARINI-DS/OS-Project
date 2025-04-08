@@ -1,21 +1,23 @@
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from scheduler import read_orders, schedule_orders
 from datetime import datetime
 import csv
 import os
-import webbrowser
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder="static")
 CORS(app)
 
-BASE_DIR = os.path.dirname(__file__)
-DATA_PATH = os.path.join(BASE_DIR, "data.csv")
-INDEX_HTML = os.path.join(BASE_DIR, "index.html")
+# File path for the orders CSV
+DATA_PATH = os.path.join(os.path.dirname(__file__), "data.csv")
 
 @app.route("/")
 def serve_index():
-    return send_file(INDEX_HTML)
+    return send_from_directory("static", "index.html")
+
+@app.route("/<path:path>")
+def serve_static_file(path):
+    return send_from_directory("static", path)
 
 @app.route("/api/orders", methods=["GET"])
 def get_orders():
@@ -41,7 +43,5 @@ def add_order():
     return jsonify({"message": "Order added"}), 201
 
 if __name__ == "__main__":
-    port = 5000
-    url = f"http://127.0.0.1:{port}/"
-    webbrowser.open(url)
-    app.run(debug=True, port=port)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(debug=True, host="0.0.0.0", port=port)
