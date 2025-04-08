@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 from scheduler import read_orders, schedule_orders
 from datetime import datetime
@@ -6,14 +6,16 @@ import csv
 import os
 import webbrowser
 
-app = Flask(__name__, static_folder="static")
+app = Flask(__name__)
 CORS(app)
 
-DATA_PATH = os.path.join(os.path.dirname(__file__), "data.csv")
+BASE_DIR = os.path.dirname(__file__)
+DATA_PATH = os.path.join(BASE_DIR, "data.csv")
+INDEX_HTML = os.path.join(BASE_DIR, "index.html")
 
 @app.route("/")
 def serve_index():
-    return send_from_directory(app.static_folder, "index.html")
+    return send_file(INDEX_HTML)
 
 @app.route("/api/orders", methods=["GET"])
 def get_orders():
