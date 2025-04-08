@@ -79,9 +79,9 @@
       };
 
       try {
-        const res = await fetch("http://127.0.0.1:5000/api/orders", {
+        const res = await fetch("/api/orders", {
           method: "POST",
-          headers: {"Content-Type": "application/json"},
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(data)
         });
 
@@ -105,7 +105,7 @@
       const quantum = quantumInput.value || 5;
 
       try {
-        const res = await fetch(`http://127.0.0.1:5000/api/orders?algorithm=${algorithm}&quantum=${quantum}`);
+        const res = await fetch(`/api/orders?algorithm=${algorithm}&quantum=${quantum}`);
         const data = await res.json();
 
         const labels = [];
@@ -164,6 +164,7 @@
         });
       } catch (err) {
         console.error("Error fetching orders:", err);
+        alert("Could not load orders. Is the backend running?");
       }
     }
 
